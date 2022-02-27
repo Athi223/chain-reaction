@@ -1,11 +1,24 @@
-import { Button, Card, Form, Modal, Table } from 'react-bootstrap'
 import { useEffect, useState } from 'react'
+import { Card, Table } from 'react-bootstrap'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import './App.css'
 
+// Import Game components
+import Annoucement from './Announcement'
+import Row from './Row'
+
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app"
+import { getDatabase, ref, set, get } from "firebase/database"
+
+import firebaseConfig from './credentials'
+// Initialize Firebase
+const app = initializeApp(firebaseConfig)
+const database = getDatabase(app)
+
 export default function App() {
 	const [ modal, setModal ] = useState(false)
-	const [ choice, setChoice ] = useState(true)
+	const [ choice, setChoice ] = useState("players")
 	const [ current, setCurrent ] = useState(0)
 	const [ alive, setAlive ] = useState([ 0, 0, 0, 0 ])			// 0 - dead (or disable), 1 - alive, 2 - first move
 	const [ rows, setRows ] = useState(Array(10).fill(0).map((_, i) => Array(6).fill(0).map((_, j) => ({ size: 0, color: -1 }))))
@@ -13,6 +26,17 @@ export default function App() {
 	useEffect(() => {
 		setModal(true)
 	}, [])
+	useEffect(() => {
+		set(ref(database, 'rooms/' + 1), {
+			current: current,
+			board: rows,
+		})
+		get(ref(database, 'rooms/' + 1)).then(snapshot => {
+			if(snapshot.exists()) {
+				console.log(snapshot.val())
+			}
+		})
+	}, [ current, rows ])
 	const handleModal = (players) => {
 		if(players) {
 			setAlive(_alive => {
@@ -91,7 +115,7 @@ export default function App() {
 			return _alive
 		})
 		if(counts.filter(count => count).length === 1) {
-			setChoice(false)
+			setChoice("win")
 			setModal(true)
 		}
 	}
@@ -111,102 +135,5 @@ export default function App() {
 			</Card>
 			<Annoucement show={modal} handleModal={handleModal} choice={choice} current={current} />
 		</div>
-	)
-}
-
-function Row(props) {
-	return (
-		<tr>
-			{props.row.map((cell, i) => <Cell key={i} cell={cell} handleClick={props.handleClick} />)}
-		</tr>
-	)
-}
-
-function Cell(props) {
-	return (
-		<td className="border-2" onClick={props.handleClick}>
-			<Atom size={props.cell.size} color={props.cell.color} />
-		</td>
-	)
-}
-
-function Atom(props) {
-	const color = ["red", "blue", "green", "yellow"][props.color]
-	if(props.size === 0) {
-		return null
-	}
-	if(props.size === 1) {
-		return (
-			<svg viewBox="0 0 70 70" preserveAspectRatio="xMinYMin meet">
-				<defs>
-					<radialGradient id={"gradient" + color} cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
-					<stop offset="10%" style={{ stopColor: "#fff" }} />
-					<stop offset="90%" style={{ stopColor: color }} />
-					</radialGradient>
-				</defs>
-
-				<circle r="25%" cx="50%" cy="50%" fill={"url(#gradient" + color + ")"} />
-			</svg>
-		)
-	}
-	if(props.size === 2) {
-		return (
-			<svg viewBox="0 0 70 70" preserveAspectRatio="xMinYMin meet">
-				<defs>
-					<radialGradient id={"gradient" + color} cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
-					<stop offset="10%" style={{ stopColor: "#fff" }} />
-					<stop offset="90%" style={{ stopColor: color }} />
-					</radialGradient>
-				</defs>
-
-				<circle r="20%" cx="25%" cy="50%" fill={"url(#gradient" + color + ")"} />
-				<circle r="20%" cx="75%" cy="50%" fill={"url(#gradient" + color + ")"} />
-			</svg>
-		)
-	}
-	if(props.size === 3) {
-		return (
-			<svg viewBox="0 0 70 70" preserveAspectRatio="xMinYMin meet">
-				<defs>
-					<radialGradient id={"gradient" + color} cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
-					<stop offset="10%" style={{ stopColor: "#fff" }} />
-					<stop offset="90%" style={{ stopColor: color }} />
-					</radialGradient>
-				</defs>
-
-				<circle r="20%" cx="25%" cy="30%" fill={"url(#gradient" + color + ")"} />
-				<circle r="20%" cx="75%" cy="30%" fill={"url(#gradient" + color + ")"} />
-				<circle r="20%" cx="50%" cy="70%" fill={"url(#gradient" + color + ")"} />
-			</svg>
-		)
-	}
-}
-
-function Annoucement(props) {
-	const color = [ "Red", "Blue", "Green", "Yellow" ][props.current]
-	const [ players, setPlayers ] = useState(2)
-	const handlePlayers = (e) => setPlayers(e.target.value)
-	return (
-		<Modal show={props.show} onHide={props.handleModal} aria-labelledby="contained-modal-title-vcenter" centered backdrop="static" keyboard={false}>
-		<Modal.Header>
-			<Modal.Title id="contained-modal-title-vcenter">{props.choice ? "Set the Number of Players" : color + " Won!"}</Modal.Title>
-		</Modal.Header>
-		<Modal.Body>
-		{ props.choice ?
-			<Form>
-				<h5><Form.Label>Number of Players: {players}</Form.Label></h5>
-				<Form.Range onChange={handlePlayers} value={players} min={2} max={4} step={1} />
-			</Form> :
-			color + " has won the game!"
-		}
-		</Modal.Body>
-		<Modal.Footer>
-		{
-			props.choice ?
-			<Button onClick={() => props.handleModal(players)} variant="primary">Start</Button> :
-			<Button onClick={() => window.location.reload()} variant="secondary">Restart</Button>
-		}
-		</Modal.Footer>
-		</Modal>
 	)
 }
